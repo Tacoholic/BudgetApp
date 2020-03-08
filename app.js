@@ -1,4 +1,3 @@
-
 //Budget Controller
 var budgetController = (function(){
     var Expense = function(id, description, value) {
@@ -11,7 +10,6 @@ var budgetController = (function(){
         this.description = description;
         this.value = value;  
     }
-
     var calculateTotal = function(type, ){
             var sum = 0;
             data.allItems[type].forEach(function(cur) {
@@ -51,6 +49,26 @@ var budgetController = (function(){
 
                 //Return it to the new element
                 return newItem;
+        },
+
+        //adding another public method that will help us delete an item 
+        deleteItem: function(type, id){
+            var ids, index;
+            //we need to create an array with all of the ID numbers and then 
+            //find our what the index of our inp ut ID is. Or the index of the ID we want to remove.
+            //We are going to loop through the income or expenses array 
+            //map method allows us to return a new array
+            //current has access to the current element and the current array  
+            ids = data.allItems[type].map(function(current) {
+                    return current.id;
+            });
+            //time to find the index
+            //indexOf returns the index number of the element of the array that is inputted 
+            index = ids.indexOf(id);
+            //then we delete the index item from the array 
+            if (index !== -1){
+                data.allItems[type].splice(index, 1)
+            }
         },
 
         //creating a public method that calculates the budget 
@@ -98,9 +116,10 @@ var UIController = (function(){
         incomeContainer: '.income__list', 
         expensesContainer: '.expenses__list',
         budgetLabel: '.budget__value ',
-        incomeLabel: 'budget__income--value',
-        expensesLabel: 'budget__expenses--value',
-        percentageLabel: 'budget__expenses--percentage'
+        incomeLabel: '.budget__income--value',
+        expensesLabel: '.budget__expenses--value',
+        percentageLabel: '.budget__expenses--percentage',
+        container: '.container'
     };
     return {
         getInput: function(){
@@ -116,46 +135,53 @@ var UIController = (function(){
            if (type === 'inc'){
             element = DOMstrings.incomeContainer; 
 
-            html = `<div class="item clearfix" id="income-%id%"> <div class="item__description">%description%</div>
+            html = `<div class="item clearfix" id="inc-%id%"> <div class="item__description">%description%</div>
             <div class="right clearfix"> <div class="item__value">%value%</div> <div class="item__delete"> 
             <button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button> </div></div></div>`;
            } else if (type === 'exp') {
             element = DOMstrings.expensesContainer;
               
-            html = `<div class="item clearfix" id="expense-%id%"> <div class="item__description">%description%</div>
+            html = `<div class="item clearfix" id="exp-%id%"> <div class="item__description">%description%</div>
                 <div class="right clearfix"><div class="item__value">%value%</div><div class="item__percentage">21%</div>
                 <div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button>
                 </div></div></div>`;
             }
-            
             //replace the placeholder text with actual data
             newHtml = html.replace('%id%', obj.id);
             newHtml = newHtml.replace('%description%', obj.description);
-            newHtml = newHtml.replace('%value%', obj.value); 
-  
-            
+            newHtml = newHtml.replace('%value%', obj.value);           
             //Insert the HTML into the DOM
             document.querySelector(element).insertAdjacentHTML('beforeend', newHtml);
+        },
+        //Method to remove items from the UI
+        //the id we will be passing into selectorID will be itemID since we just dont want the type or id, we 
+        //want it all
+        deleteListItem: function(selectorID){
+            //we have to move up in the dom in order to delete the child method.
+            //in JS we cannot remove an element, we can only remove a child
+            var el = document.getElementById(selectorID)
+            el.parentNode.removeChild(el);
+
         },
 
         //New method so we can clear the fields 
         clearFields: function(){
             var fields, fieldsArr;
             fields = document.querySelectorAll(DOMstrings.inputDescription + ', ' + DOMstrings.inputValue);
-            //queryselector all returns a list, not an array, so we need to trick JS into converting the list 
+            //queryselectorAll returns a list, not an array, so we need to trick JS into converting the list 
             //into an arry. For that, we will use the slice method, which will return a coopy of the array. 
             //We have to use the slice method, using a call method and then passing a fields variable into it so that
             //it becomes a this variable
             var fieldsArr = Array.prototype.slice.call(fields);
 
             //adding a little callback function
-            //The callback function is called to supply each of the alements in the array 
+            //The callback function is called to supply each of the elements in the array 
             //the CB function can recieve up to 3 arguments. (1. access to the current value of the array that is currently being procesed,
             // 2. index number, 3. also access to the entire array )
             fieldsArr.forEach(function(current, index, array){
                 current.value = "";
             });
-
+            //This clears it
             fieldsArr[0].focus();
         },
         displayBudget: function(obj){
@@ -178,7 +204,6 @@ var UIController = (function(){
 
 //Global App Controller
 var controller = (function(budgetCtrl, UICtrl){
-
 var setupEventListeners = function(){
     var DOM = UICtrl.getDOMstrings();  
     document.querySelector(DOM.inputBtn).addEventListener('click', ctrlAddItem);
@@ -187,6 +212,11 @@ var setupEventListeners = function(){
          ctrlAddItem();   
         }
     });
+
+    //Adding this and using container because it is the first element (parent) that both income and expenses
+    //have in common. We did this because we want to set event delegation. The finction that will be 
+    //attached to the container is ctrlDeleteItem
+    document.querySelector(DOM.container).addEventListener('click', ctrlDeleteItem);
 };
 
 
@@ -196,8 +226,10 @@ var setupEventListeners = function(){
 var updateBudget = function(){
     //1 Calculate the budget 
     budgetCtrl.calculateBudget();
+
     //2. Method tht will return the budget
     var budget = budgetCtrl.getBudget();
+
     //3. Display the budget on the UI
     UICtrl.displayBudget(budget);
 }
@@ -208,7 +240,6 @@ var ctrlAddItem = function(){
  //Todo list of what we want to happen as soon as someone hits the button
        //1.Get the field input data
        var input = UICtrl.getInput();
-
         if (input.description !== "" && !isNaN(input.value) && input.value > 0) {
         //2. Add Item to the button controller
          var newItem = budgetCtrl.addItem(input.type, input.description, input.value);
@@ -219,6 +250,37 @@ var ctrlAddItem = function(){
         //5. Calculate and update budget 
         updateBudget();
        }
+    };
+//we'll need to pass the event object because we want access to it.
+//we pass event because we want to know what the target is
+    var ctrlDeleteItem = function(event){
+        var itemID, splitID;
+        //event.target tells us where the event(click) happened.
+        //We then moved up in the DOM thanks to parentNode, until we are able to retrieve the ID and store it in itemID
+        //itemID is key because it will tell us what the item type is and will also tell us what the IT is. We then isolate
+        //each of these items, using the split method for the string
+        itemID = (event.target.parentNode.parentNode.parentNode.parentNode.id);
+        if (itemID){
+            //Remember strings are primitives and not objects
+            //inc-1 we'll need to brek this is up. 
+            splitID = itemID.split('-');
+            type = splitID[0];
+            //we had to add parseInt
+            ID = parseInt(splitID[1]);
+
+            //Thanks to the above, now we can delete items from DB and UI
+
+            //1. Delete item from data structure
+            budgetCtrl.deleteItem(type, ID);
+
+            //2. Delete the item from the UI
+            UICtrl.deleteListItem(itemID);
+
+            //3. Update and show the new budget
+            //this is why we created a separate function for updateBudget; we would be using it more than once
+            updateBudget();
+
+        }
     };
     return {
         init: function(){
