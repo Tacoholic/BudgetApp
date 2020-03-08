@@ -4,7 +4,25 @@ var budgetController = (function(){
         this.id = id;
         this.description = description;
         this.value = value;  
+        this.percentage = -1;
+    };
+    //This is the method we are adding to the constructor. Instead of adding it inside of the constructor,
+    //we are gonna add it to its prototype. Because of this, all the objects that are created through this prototype,
+    //wiil then inherit this method because of the prototype chain
+    //calPercentage is the new method.
+    //we need something in order to calculate the percentages, so we'll pass in total income 
+    Expense.prototype.calcPercentage = function(totalIncome){
+        if (totalIncome > 0){
+        this.percentage = ((this.value / totalIncome) * 100)
+        } else {
+            this.percentage = -1;
+        }
+    };
+    //This method will return the percentage.  It was created above, below it will be returned
+    Expense.prototype.getPercentage = function() {
+        return this.percentage;
     }
+
     var Income = function(id, description, value) {
         this.id = id;
         this.description = description;
@@ -90,6 +108,27 @@ var budgetController = (function(){
             }
             
         },
+        //Public method 
+        calculatePercentages: function(){
+            //we need to calculate the expense % for of the expense objects that are stored in the expenses array
+            data.allItems.exp.forEach(function(cur){
+                //the callback function specifies what we want to happen to each array
+                //What we want to happened to each of the elements is to call the calcPercentage method
+                cur.calcPercentage(data.totals.inc);  //Need to pass data.totals.inc
+            });
+        },
+
+        //now we add another get method, but this time for percentages
+        getPercentages: function(){
+            //we need to loop over all of the expenses and thats because we want to call the getPercentage method on each of our objects
+            //We will use the map method because not only do we want to loop, but we also want to return something and store it 
+          // cur = current  
+            var allPerc = data.allItems.exp.map(function(cur){
+                return cur.getPercentage();
+            });
+            return allPerc;
+        },
+
         //This is the method that returns the budget(calulate budget)
         getBudget: function(){
             return {
@@ -119,7 +158,8 @@ var UIController = (function(){
         incomeLabel: '.budget__income--value',
         expensesLabel: '.budget__expenses--value',
         percentageLabel: '.budget__expenses--percentage',
-        container: '.container'
+        container: '.container',
+        expensesPercLaber: '.item__percentage'
     };
     return {
         getInput: function(){
@@ -195,6 +235,33 @@ var UIController = (function(){
                 document.querySelector(DOMstrings.percentageLabel).textContent = '---';
             }
         },
+        //new method to display the percentages update
+        displayPercentages: function(percentages){
+            //we need to use queryselectorall since queryselector only selects the first one
+            //This will return a Node list
+            var fields = document.querySelectorAll(DOMstrings.expensesPercLaber)
+            //we could try and use the slice method, but it will not work 
+
+            //we will pass in the nodelist and a call back function for nodeListForEach function
+            var nodeListForEach = function(list, callback){
+                    //this function will be a for loop in which each iteration is gonna callback our callback function
+                    for (var i = 0; i < list.length; i++){
+                        //the parameters for this callback function is current and index (line 254)
+                        callback(list[i], i)
+                    }
+            };
+            //The function is assignef to the callback argument in line 246
+            nodeListForEach(fields, function(current, index){
+                //Do stuff
+                //first element we want the first percentage, second element, etc...
+                if (percentages[index] > 0){
+                    current.textContent = percentages[index] + '%';
+                } else {
+                    current.textContent = percentages[index] + '---';
+                }
+            });
+
+        },
         getDOMstrings: function(obj){
             return DOMstrings;
         }
@@ -232,8 +299,18 @@ var updateBudget = function(){
 
     //3. Display the budget on the UI
     UICtrl.displayBudget(budget);
-}
-  
+};
+
+var updatePercentages = function(){
+    //1. Calculate the percentages
+    budgetCtrl.calculatePercentages();
+
+    //2. Read percentages from the budget controller
+       var percentages = budgetCtrl.getPercentages();
+    //3. Update the UI with the new percentages, we get it from the previous variablr
+    UICtrl.displayPercentages(percentages);
+
+};
 var ctrlAddItem = function(){
     var input, newItem;
 
@@ -250,6 +327,8 @@ var ctrlAddItem = function(){
         //5. Calculate and update budget 
         updateBudget();
        }
+       //6. Calculate and update the percentages
+       updatePercentages();
     };
 //we'll need to pass the event object because we want access to it.
 //we pass event because we want to know what the target is
@@ -279,6 +358,9 @@ var ctrlAddItem = function(){
             //3. Update and show the new budget
             //this is why we created a separate function for updateBudget; we would be using it more than once
             updateBudget();
+
+            //4. Calculate and update percentages
+            updatePercentages();
 
         }
     };
